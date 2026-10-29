@@ -5,6 +5,7 @@ Bateria de 30 Treinamentos - Alteracao 4:
 - Cosine Annealing com Warmup
 - Exportacao em 'resultados_30_experimentos_alteracao4.csv'
 """
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -37,7 +38,7 @@ def run_single_cycle(seed: int, epochs: int = config.EPOCHS, lr: float = 1.5e-3,
         batch_size=batch_size
     )
 
-    torch.manual_seed(seed)
+    config.set_seed(seed)
     model = ClassifierMLP(input_dim=input_dim).to(config.DEVICE)
     criterion = BinaryFocalLoss(gamma=1.5, alpha=0.5)
     
@@ -109,16 +110,21 @@ def run_single_cycle(seed: int, epochs: int = config.EPOCHS, lr: float = 1.5e-3,
         "auc_roc": round(roc_auc_score(y_true, y_probs), 4)
     }
 
-def main():
-    seeds = [i * 37 + 11 for i in range(30)]
+def main(total_cycles: int = 30):
+    parser = argparse.ArgumentParser(description="Execução da Bateria Fase 4 (Focal Loss + LayerNorm)")
+    parser.add_argument("--ciclos", type=int, default=total_cycles, help="Número de ciclos independentes (padrão: 30)")
+    args, _ = parser.parse_known_args()
+    total_cycles = args.ciclos
+
+    seeds = [i * 37 + 11 for i in range(total_cycles)]
     records = []
 
     print("=" * 70)
-    print(" INICIANDO BATERIA DE 30 TESTES - ALTERACAO 4 (FOCAL LOSS + LAYERNORM) ")
+    print(f" INICIANDO BATERIA DE {total_cycles} TESTES - FASE 4 (FOCAL LOSS + LAYERNORM) ")
     print("=" * 70)
 
     for idx, s in enumerate(seeds, start=1):
-        print(f"Executando Ciclo [{idx:02d}/30] | Seed: {s}...")
+        print(f"Executando Ciclo [{idx:02d}/{total_cycles}] | Seed: {s}...")
         res = run_single_cycle(seed=s)
         res["ciclo"] = idx
         records.append(res)
@@ -131,7 +137,7 @@ def main():
     df.to_csv(csv_path, index=False)
     
     print("\n" + "=" * 70)
-    print("      30 EXPERIMENTOS CONCLUIDOS COM SUCESSO (ALTERACAO 4)           ")
+    print(f"      {total_cycles} EXPERIMENTOS CONCLUIDOS COM SUCESSO (FASE 4)       ")
     print("=" * 70)
     print(df.to_string(index=False))
     print(f"\nArquivo salvo em: {csv_path}")

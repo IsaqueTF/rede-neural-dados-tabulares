@@ -5,6 +5,7 @@ Bateria de 35 Treinamentos - Alteracao 5:
 - Precisao Mista Automatica (AMP) para menor consumo de VRAM e maior velocidade
 - Exportacao em 'resultados_35_experimentos_alteracao5.csv'
 """
+import argparse
 import gc
 import torch
 import torch.nn as nn
@@ -37,9 +38,7 @@ def run_single_cycle(seed: int, epochs: int = config.EPOCHS, lr: float = 1.5e-3,
         batch_size=batch_size
     )
 
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    config.set_seed(seed)
 
     model = ClassifierMLP(input_dim=input_dim).to(config.DEVICE)
     criterion = BinaryFocalLoss(gamma=1.5, alpha=0.5)
@@ -56,7 +55,7 @@ def run_single_cycle(seed: int, epochs: int = config.EPOCHS, lr: float = 1.5e-3,
         model.train()
         for X_b, y_b in train_loader:
             X_b, y_b = X_b.to(config.DEVICE, non_blocking=True), y_b.to(config.DEVICE, non_blocking=True)
-            optimizer.zero_grad(set_to_none=True)  # Menor consumo de memoria que zero_grad()
+            optimizer.zero_grad(set_to_none=True)
 
             with torch.amp.autocast(device_type=config.DEVICE.type, enabled=(config.DEVICE.type == "cuda")):
                 out = model(X_b)
@@ -124,13 +123,17 @@ def run_single_cycle(seed: int, epochs: int = config.EPOCHS, lr: float = 1.5e-3,
         "auc_roc": round(roc_auc_score(y_true, y_probs), 4)
     }
 
-def main():
-    total_cycles = 35
+def main(total_cycles: int = 35):
+    parser = argparse.ArgumentParser(description="Execução da Bateria Fase 5 (AMP e Otimização)")
+    parser.add_argument("--ciclos", type=int, default=total_cycles, help="Número de ciclos independentes (padrão: 35)")
+    args, _ = parser.parse_known_args()
+    total_cycles = args.ciclos
+
     seeds = [i * 37 + 11 for i in range(total_cycles)]
     records = []
 
     print("=" * 70)
-    print(" INICIANDO BATERIA DE 35 TESTES - ALTERACAO 5 (DESEMPENHO E MEMORIA) ")
+    print(f" INICIANDO BATERIA DE {total_cycles} TESTES - FASE 5 (AMP E OTIMIZACAO) ")
     print("=" * 70)
 
     for idx, s in enumerate(seeds, start=1):
@@ -147,10 +150,10 @@ def main():
     df.to_csv(csv_path, index=False)
     
     print("\n" + "=" * 70)
-    print("      35 EXPERIMENTOS CONCLUIDOS COM SUCESSO (ALTERACAO 5)           ")
+    print(f"      {total_cycles} EXPERIMENTOS CONCLUIDOS COM SUCESSO (FASE 5)       ")
     print("=" * 70)
     print(df.to_string(index=False))
-    print(f"\nNovo arquivo salvo em: {csv_path}")
+    print(f"\nArquivo salvo em: {csv_path}")
 
 if __name__ == "__main__":
     main()

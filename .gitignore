@@ -3,16 +3,32 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Environments
-.env
-.venv
-env/
+# Ambientes virtuais
+.venv/
 venv/
+env/
 ENV/
 
-# OS and IDE files
+# Variáveis de ambiente e segredos locais
+.env
+.env.*
+!.env.example
+
+# Editores e IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter / Checkpoints
+.ipynb_checkpoints/
+
+# Documentos internos de consulta
+docs/
+
+# Arquivos de sistema e temporários
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
-
+*.tmp
+*.log
+*.bak

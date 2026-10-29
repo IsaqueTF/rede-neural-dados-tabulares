@@ -1,63 +1,61 @@
-# Rede Neural para Dados Tabulares
+# Rede Neural para Classificação Binária em Dados Tabulares
 
-Pipeline completo de aprendizado profundo (Deep Learning) voltado para classificação em dados tabulares complexos, integrando engenharia de atributos, mecanismo de atenção (*Gated Feature Attention*), blocos residuais (*ResNet-style*) e uma API de inferência em tempo real com FastAPI.
-
----
-
-## 🎯 Objetivos do Projeto
-
-1. **Superação de MLPs Tradicionais em Dados Tabulares**: Implementar técnicas modernas de deep learning adequadas à natureza de dados tabulares (normalização por camada, ativação suave SiLU, atenção de features e skip-connections).
-2. **Robustez a Ruído e Outliers**: Emprego de `RobustScaler` e engenharia de características não-lineares, além de função de perda `Binary Focal Loss` focada em instâncias difíceis.
-3. **Reprodutibilidade e Validação Estatística**: Baterias de testes com 30 a 35 ciclos independentes com sementes randômicas para garantir que as métricas de acurácia, F1-Score e AUC-ROC sejam consistentes.
-4. **Deploy Pronto para Produção**: Exposição do modelo e dos artefatos de pré-processamento via API REST assíncrona de baixa latência (`FastAPI`).
+Código-fonte do pipeline experimental do artigo **"Desenvolvimento da Inteligência Artificial: estruturação do banco de dados, treinamento, codificação da IA, testes e validação"**, desenvolvido na Universidade Evangélica de Goiás (UniEVANGÉLICA).
 
 ---
 
-## 🏗️ Arquitetura do Modelo
+## Sobre o projeto
 
-O modelo implementado em `src/model.py` (`ClassifierMLP`) possui os seguintes componentes:
-
-```
-[ Entrada (Features Tabulares) ]
-               │
-               ▼
-   [ Gated Feature Attention ]   <-- Ponderação adaptativa de atributos
-               │
-               ▼
-   [ Camada de Projeção Linear ]
-   [ LayerNorm + SiLU + Dropout ]
-               │
-               ▼
-   [ Stable Residual Block 1 ]   <-- Conexão residual balanceada (x + 0.5 * F(x))
-               │
-               ▼
-   [ Stable Residual Block 2 ]
-               │
-               ▼
-   [ Cabeça de Classificação ]
-               │
-               ▼
-       [ Logits / Sigmoid ]
-```
-
-### Principais Diferenciais:
-- **Gated Feature Attention**: Aplica uma máscara suave de gating sobre o vetor de entrada para destacar variáveis informativas e atenuar ruídos.
-- **StableResidualBlock**: Combina Linear, LayerNorm, SiLU e Dropout, com soma ponderada residual para estabilizar o gradiente.
-- **Otimização**: Otimizador `AdamW` com decaimento de taxa de aprendizado cíclico (`CosineAnnealingWarmRestarts`) e precisão mista automática (AMP via `torch.amp`).
+Este repositório investiga como técnicas de arquitetura, regularização e otimização afetam o desempenho e a estabilidade de uma rede neural aplicada a dados tabulares. O estudo parte de um Multilayer Perceptron (MLP) básico e incorpora, de forma progressiva, mecanismos de atenção, conexões residuais, normalização por camadas e função de perda focal.
 
 ---
 
-## 📊 Métricas e Resultados
+## Fases experimentais
 
-Nas baterias de testes empíricos de 35 execuções independentes (`resultados_35_experimentos_alteracao5.csv`):
-- **Acurácia Média**: ~95.5% a 97.0%
-- **F1-Score**: ~0.95 a 0.97
-- **AUC-ROC**: > 0.985 (alcançando até 0.992)
-- **Loss de Validação**: ~0.023 a 0.035
+| Fase | Descrição | Execuções |
+|:---:|---|:---:|
+| **1** | MLP basal (ReLU + Binary Cross Entropy) | 30 |
+| **2** | Gated Feature Attention + conexões residuais | 30 |
+| **3** | Base enriquecida (24 variáveis) + ruído gaussiano no treino | 30 |
+| **4** | Binary Focal Loss + LayerNorm + SiLU (e teste de repetibilidade) | 30 |
+| **5** | Configuração final com precisão mista automática (AMP) | 35 |
 
 ---
 
-## 📁 Estrutura do Repositório
+## Base de dados
+
+- **1.000 registros**, 20 variáveis numéricas originais + 4 derivadas por engenharia de atributos (24 preditores) e uma coluna de saída binária.
+- **Divisão estratificada**: 70% treino, 15% validação, 15% teste.
+- **`RobustScaler`** ajustado somente no conjunto de treino, para evitar vazamento de dados (*data leakage*).
+- **Ruído gaussiano** (\(\sigma = 0,01\)) aplicado exclusivamente no conjunto de treino para aumentar a robustez.
+
+---
+
+## Treinamento
+
+- **Otimizador**: AdamW (weight decay = 1e-4)
+- **Taxa de aprendizado**: Cosine Annealing Warm Restarts
+- **Gradient clipping**: 1,0
+- **Early Stopping**: paciência de 15 épocas sobre a perda de validação
+- **Precisão mista automática (AMP)**: `torch.amp.GradScaler`
+- **Função de Perda**: Binary Focal Loss com \(\gamma = 2,0\)
+
+---
+
+## Resultados principais (Fase 5, 35 execuções)
+
+| Métrica | Média ± desvio padrão |
+|---|:---:|
+| **Acurácia** | 95,22% ± 0,98% |
+| **F1-Score** | 95,21% ± 0,99% |
+| **AUC-ROC** | 0,9856 ± 0,0044 |
+| **Perda de validação** | 0,0272 ± 0,0058 |
+
+> **Conclusão:** O maior benefício de aumentar a complexidade da rede foi a **redução expressiva da variabilidade entre execuções** (estabilidade estatística), e não apenas o aumento pontual das médias de acerto.
+
+---
+
+## Estrutura do Repositório
 
 ```text
 ├── data/
@@ -65,30 +63,33 @@ Nas baterias de testes empíricos de 35 execuções independentes (`resultados_3
 │   │   └── dataset.csv              # Base tabular bruta com features e target
 │   └── processed/
 │       ├── scaler.joblib            # Scaler ajustado para inferência
-│       └── resultados_*.csv         # Históricos das baterias experimentais
+│       └── resultados_*.csv         # Históricos das baterias experimentais (Fases 1 a 5)
 ├── models/
-│   └── best_model.pt                # Pesos do melhor modelo treinado
+│   └── best_model.pt                # Checkpoint do melhor modelo treinado
 ├── src/
 │   ├── __init__.py
-│   ├── config.py                    # Hiperparâmetros e caminhos do projeto
-│   ├── dataset.py                   # Pipeline de dados, split estratificado e engenharia
-│   ├── model.py                     # Arquitetura ClassifierMLP e Feature Attention
-│   ├── train.py                     # Script de treinamento de ciclo único com Early Stopping
-│   ├── train_multiple.py            # Execução de múltiplos treinamentos
+│   ├── config.py                    # Hiperparâmetros, seeds e caminhos do projeto
+│   ├── dataset.py                   # Pipeline de dados, RobustScaler e engenharia de features
+│   ├── model.py                     # Arquitetura ClassifierMLP (Gated Attention + Residual Blocks)
+│   ├── train.py                     # Treinamento individual com Early Stopping
 │   ├── evaluate.py                  # Avaliação no split de teste (Acurácia, F1, ROC-AUC, CM)
 │   ├── run_30_experiments.py        # Bateria de 30 experimentos
-│   ├── run_35_experiments.py        # Bateria avançada de 35 experimentos com AMP
-│   └── main_api.py                  # API REST com FastAPI para predição
+│   ├── run_35_experiments.py        # Bateria da Fase 5 (35 ciclos com AMP)
+│   └── main_api.py                  # API REST com FastAPI para predição em tempo real
 ├── requirements.txt                 # Dependências do projeto
+├── LICENSE                          # Licença MIT
 └── README.md
 ```
 
 ---
 
-## 🚀 Como Executar
+## Como executar
 
-### 1. Instalação do Ambiente
+### 1. Clonar o repositório e preparar o ambiente
 ```bash
+git clone https://github.com/IsaqueTF/rede-neural-dados-tabulares.git
+cd rede-neural-dados-tabulares
+
 python -m venv venv
 # No Windows:
 .\venv\Scripts\activate
@@ -98,37 +99,54 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Treinamento do Modelo
+### 2. Executar o Treinamento
 ```bash
 python -m src.train
 ```
 
-### 3. Avaliação no Conjunto de Teste
+### 3. Avaliar no Conjunto de Teste
 ```bash
 python -m src.evaluate
 ```
 
-### 4. Bateria de Experimentos
+### 4. Reproduzir a Bateria Experimental (Fase 5 - 35 Ciclos)
 ```bash
 python -m src.run_35_experiments
 ```
 
-### 5. Execução da API de Inferência
+### 5. Executar a API de Inferência
 ```bash
 uvicorn src.main_api:app --host 0.0.0.0 --port 8000 --reload
 ```
-Acesse a documentação interativa Swagger em: `http://localhost:8000/docs`
+Acesse a documentação Swagger em: `http://localhost:8000/docs`
 
-#### Exemplo de Requisição (POST `/predict`):
-```json
-{
-  "features": [0.655, -0.605, -2.714, 0.825, -0.796, -1.237, 3.152, -7.691, 0.648, 1.716, -1.318, 1.780, 1.129, -2.174, -0.131]
-}
-```
-Resposta:
-```json
-{
-  "probability": 0.9412,
-  "predicted_class": 1
-}
-```
+---
+
+## Tecnologias
+
+- **Linguagem**: Python
+- **Deep Learning**: PyTorch
+- **Machine Learning & Pré-processamento**: Scikit-Learn
+- **Manipulação de Dados**: Pandas, NumPy
+- **Deploy / API**: FastAPI, Uvicorn, Pydantic
+
+---
+
+## Limitações
+
+Base com 1.000 instâncias na formulação experimental, o que restringe a generalização direta para bases massivas. Trabalhos futuros incluem testes com dados reais altamente desbalanceados e estudo comparativo aprofundado com modelos baseados em árvores de decisão como XGBoost e LightGBM.
+
+---
+
+## Autores
+
+- **Isaque Teles Ferreira**
+- **Igor Dalarmelino Borges**
+
+*Universidade Evangélica de Goiás (UniEVANGÉLICA)*
+
+---
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo [`LICENSE`](LICENSE) para mais detalhes.
